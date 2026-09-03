@@ -2,7 +2,8 @@
 
 以OpenStreetMap路網估算全台每一路段之路寬，指認15公尺以下、可能成為「生活街道」（living street）的道路，並以互動式網頁地圖呈現。
 
-- 互動地圖：`docs/index.html`（GitHub Pages）
+- 互動地圖：https://yunching0513.github.io/202609---Taiwanwonnerf/ （`docs/index.html`，GitHub Pages）
+- 兩種模式：「路寬分級」（生活街道候選）與「道路功能層級」（荷蘭Sustainable Safety三層分級）
 - 資料下載：`data/export/taiwan_living_streets_twd97.zip`（Shapefile, EPSG:3826）、`data/export/taiwan_roads_all_twd97.zip`（全部道路）
 - 欄位說明：`scripts/FIELDS.txt`
 
@@ -14,6 +15,18 @@
 | B | 8–12m | 社區街道（街、residential 路） |
 | C | 12–15m | 邊界案例（tertiary、部分路） |
 | X | >15m | 非生活街道（未納入地圖） |
+
+## 道路功能層級（Sustainable Safety）
+
+依荷蘭Duurzaam Veilig的道路功能三分法，以OSM highway標籤與台灣ref慣例對應：
+
+| 層級 | 荷蘭語 | 台灣對應 | OSM |
+|---|---|---|---|
+| Through roads 通過性道路 | Stroomwegen | 國道、快速公路 | motorway、trunk（含_link） |
+| Distributor roads 集散道路 | Gebiedsontsluitingswegen | 省道、縣道、鄉道、市區主要／次要幹道 | primary、secondary、tertiary（含_link） |
+| Access roads 進出道路 | Erftoegangswegen | 市區道路、巷弄 | unclassified、residential、living_street、service、pedestrian |
+
+子類型判定：primary且ref為1–2位數→省道；secondary且ref為3位數→縣道；tertiary且ref為「縣市簡稱＋數字」→鄉道；其餘依所在等級標為市區主要／次要幹道。長度：Through約4,888 km（3.5%）、Distributor約29,822 km（22%）、Access約102,980 km（75%）。
 
 ## 路寬估算方法
 
@@ -39,6 +52,8 @@ pip install osmium geopandas pyarrow shapely pyproj
 python scripts/01_extract_roads.py data/taiwan-latest.osm.pbf
 bash   scripts/02_build_tiles.sh        # 需 tippecanoe
 python scripts/03_export_shp.py
+python scripts/04_county_split.py
+python scripts/05_hierarchy.py && tippecanoe -o docs/tiles/hierarchy.pmtiles -l hierarchy -Z5 -z13 -P --drop-densest-as-needed --extend-zooms-if-still-dropping --simplification=4 --force data/hierarchy.geojsonl
 ```
 
 ## 限制與後續

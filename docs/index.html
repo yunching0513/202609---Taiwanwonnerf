@@ -29,7 +29,12 @@
     letter-spacing:.32em;color:var(--gold);margin:0 0 8px;text-transform:uppercase}
   .panel h2{font-weight:400;font-size:22px;letter-spacing:.14em;color:var(--strong);margin:0 0 16px;line-height:1.5}
   .panel p{font-size:13px;margin:0 0 16px}
-  .legend{margin:24px 0 16px;padding-top:16px;border-top:1px solid var(--bluegrey)}
+  .modes{display:flex;gap:0;margin:20px 0 0;border-bottom:1px solid var(--bluegrey)}
+  .modes button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px 0;font:inherit;font-size:12px;letter-spacing:.14em;color:var(--gold);cursor:pointer;transition:color .6s,border-color .6s}
+  .modes button.on{color:var(--strong);border-bottom-color:var(--tokiwa)}
+  .legend{margin:16px 0 16px}
+  .legend .sub{font-size:11px;color:var(--gold);letter-spacing:.08em;margin:2px 0 6px 34px;line-height:1.7}
+  .hide2{display:none!important}
   .row{display:flex;align-items:center;gap:12px;font-size:12.5px;padding:6px 0;cursor:pointer;user-select:none;white-space:nowrap}
   .row input{accent-color:var(--tokiwa);margin:0}
   .sw{width:22px;height:0;border-top:3px solid;flex:none}
@@ -67,14 +72,29 @@
 <aside class="panel" id="panel">
   <h1>Taiwanwonnerf · Living Streets</h1>
   <h2>全台生活街道<br>指認地圖</h2>
-  <p>以OpenStreetMap路網為底，估算每一路段之路寬，指認15公尺以下、可能成為生活街道（living street／しなやかな道）的道路。放大到街廓層級可點選任一路段查看估算依據。</p>
+  <p>以OpenStreetMap路網為底，估算每一路段之路寬，指認15公尺以下、可能成為生活街道（living street／しなやかな道）的道路；另可切換為荷蘭Sustainable Safety的三層道路功能分級（Through／Distributor／Access）。放大到街廓層級可點選任一路段查看依據。</p>
   <input class="search" id="q" placeholder="搜尋地點（例：臺南市中西區）" />
-  <div class="legend">
-    <label class="row"><input type="checkbox" data-cls="A" checked><span class="sw" style="border-color:var(--cA)"></span>≤8公尺 巷弄型生活街道<span class="n" id="nA">–</span></label>
-    <label class="row"><input type="checkbox" data-cls="B" checked><span class="sw" style="border-color:var(--cB)"></span>8–12公尺 社區街道<span class="n" id="nB">–</span></label>
-    <label class="row"><input type="checkbox" data-cls="C"><span class="sw" style="border-color:var(--cC)"></span>12–15公尺 邊界案例<span class="n" id="nC">–</span></label>
+  <div class="modes">
+    <button class="on" data-mode="width">路寬分級</button>
+    <button data-mode="ss">道路功能層級</button>
+  </div>
+  <div class="legend" id="legWidth">
+    <label class="row"><input type="checkbox" data-layer="ls-A" checked><span class="sw" style="border-color:var(--cA)"></span>≤8公尺 巷弄型生活街道<span class="n" id="nA">–</span></label>
+    <label class="row"><input type="checkbox" data-layer="ls-B" checked><span class="sw" style="border-color:var(--cB)"></span>8–12公尺 社區街道<span class="n" id="nB">–</span></label>
+    <label class="row"><input type="checkbox" data-layer="ls-C"><span class="sw" style="border-color:var(--cC)"></span>12–15公尺 邊界案例<span class="n" id="nC">–</span></label>
+    <label class="row"><input type="checkbox" data-layer="ctx-major" checked><span class="sw" style="border-color:#9A9A9A"></span>主要道路（國道／快速／省縣鄉道）<span class="n">底圖參考</span></label>
+  </div>
+  <div class="legend hide2" id="legSS">
+    <div class="sub" style="margin:0 0 10px">依荷蘭 Sustainable Safety（Duurzaam Veilig）三層功能分級</div>
+    <label class="row"><input type="checkbox" data-layer="h-T" checked><span class="sw" style="border-color:#000;border-top-width:4px"></span>Through roads　通過性道路<span class="n" id="nT">–</span></label>
+    <div class="sub">國道、快速公路（Stroomwegen）</div>
+    <label class="row"><input type="checkbox" data-layer="h-D" checked><span class="sw" style="border-color:var(--shu)"></span>Distributor roads　集散道路<span class="n" id="nD">–</span></label>
+    <div class="sub" id="subD">省道、縣道、鄉道、市區幹道（Gebiedsontsluitingswegen）</div>
+    <label class="row"><input type="checkbox" data-layer="h-A" checked><span class="sw" style="border-color:var(--tokiwa);border-top-width:1.5px"></span>Access roads　進出道路<span class="n" id="nAcc">–</span></label>
+    <div class="sub">市區道路、巷弄（Erftoegangswegen；即左側路寬分級之全部路段）</div>
   </div>
   <div class="stats" id="stats"></div>
+  <div class="stats hide2" id="statsSS"></div>
   <details class="cty"><summary>各縣市 ≤12公尺道路比例</summary><table id="ctyTable"></table></details>
   <div class="src">資料：© OpenStreetMap contributors（ODbL）· 底圖：內政部國土測繪中心 臺灣通用電子地圖<br>
     方法與程式：<a href="https://github.com/yunching0513/202609---Taiwanwonnerf" target="_blank">GitHub / Taiwanwonnerf</a></div>
@@ -84,7 +104,14 @@
 <script>
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
-const TILES = "pmtiles://" + location.href.replace(/[^/]*$/, "") + "tiles/living_streets.pmtiles";
+const BASE = location.href.replace(/[^/]*$/, "");
+const TILES = "pmtiles://" + BASE + "tiles/living_streets.pmtiles";
+const HTILES = "pmtiles://" + BASE + "tiles/hierarchy.pmtiles";
+const LW = (a, b, c, k) => k ? ["interpolate", ["linear"], ["zoom"], 6, ["*", a, k], 10, ["*", b, k], 16, ["*", c, k]]
+                              : ["interpolate", ["linear"], ["zoom"], 6, a, 10, b, 16, c];
+const K_T = ["case", ["==", ["get", "link"], 1], 0.45, 1];
+const K_D = ["case", ["==", ["get", "link"], 1], 0.35, ["match", ["get", "sub"], "省道", 1, ["縣道", "市區主要幹道"], 0.8, 0.6]];
+const K_CTX = ["case", ["==", ["get", "ss"], "T"], 1, 0.4];
 
 const map = new maplibregl.Map({
   container: "map",
@@ -96,12 +123,18 @@ const map = new maplibregl.Map({
         tiles: ["https://wmts.nlsc.gov.tw/wmts/EMAP5/default/GoogleMapsCompatible/{z}/{y}/{x}"],
         attribution: "底圖 © 內政部國土測繪中心"
       },
-      roads: { type: "vector", url: TILES, attribution: "© OpenStreetMap contributors" }
+      roads: { type: "vector", url: TILES, attribution: "© OpenStreetMap contributors" },
+      hier:  { type: "vector", url: HTILES }
     },
     layers: [
       { id: "bg", type: "background", paint: { "background-color": "#F2F2F2" } },
       { id: "emap", type: "raster", source: "emap",
         paint: { "raster-opacity": 0.55, "raster-saturation": -1, "raster-contrast": -0.2 } },
+      // ── 路寬分級模式：主要道路以淡灰作為底圖參考 ──
+      { id: "ctx-major", type: "line", source: "hier", "source-layer": "hierarchy",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#9A9A9A", "line-opacity": 0.55,
+          "line-width": LW(1, 1.8, 3.5, K_CTX) } },
       { id: "ls-C", type: "line", source: "roads", "source-layer": "living_streets",
         filter: ["==", ["get", "cls"], "C"], layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#B8A98C", "line-opacity": 0.75,
@@ -114,6 +147,21 @@ const map = new maplibregl.Map({
         filter: ["==", ["get", "cls"], "A"], layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#A6392C", "line-opacity": 0.8,
           "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.3, 12, 1, 16, 3.5] } },
+      // ── Sustainable Safety 層級模式 ──
+      { id: "h-A", type: "line", source: "roads", "source-layer": "living_streets",
+        layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#2E6B4E", "line-opacity": 0.6, "line-width": LW(0.2, 0.6, 2) } },
+      { id: "h-D", type: "line", source: "hier", "source-layer": "hierarchy",
+        filter: ["==", ["get", "ss"], "D"], layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#A6392C", "line-opacity": 0.85,
+          "line-width": LW(0.8, 1.7, 4, K_D) } },
+      { id: "h-T-casing", type: "line", source: "hier", "source-layer": "hierarchy",
+        filter: ["==", ["get", "ss"], "T"], layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#F2F2F2", "line-width": LW(2.2, 3.8, 8, K_T) } },
+      { id: "h-T", type: "line", source: "hier", "source-layer": "hierarchy",
+        filter: ["==", ["get", "ss"], "T"], layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#000000", "line-opacity": 0.9,
+          "line-width": LW(1.2, 2.2, 5, K_T) } },
     ]
   },
   center: [120.98, 23.7], zoom: 7.4, minZoom: 6, maxZoom: 18, attributionControl: { compact: true }
@@ -121,21 +169,51 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
-document.querySelectorAll("input[data-cls]").forEach(cb => cb.addEventListener("change", e => {
-  map.setLayoutProperty("ls-" + e.target.dataset.cls, "visibility", e.target.checked ? "visible" : "none");
+const MODE = { width: ["ctx-major", "ls-A", "ls-B", "ls-C"], ss: ["h-A", "h-D", "h-T-casing", "h-T"] };
+const vis = (id, on) => map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+function applyMode(m) {
+  document.querySelectorAll(".modes button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  document.getElementById("legWidth").classList.toggle("hide2", m !== "width");
+  document.getElementById("legSS").classList.toggle("hide2", m !== "ss");
+  document.getElementById("stats").classList.toggle("hide2", m !== "width");
+  document.getElementById("statsSS").classList.toggle("hide2", m !== "ss");
+  document.querySelector(".cty").classList.toggle("hide2", m !== "width");
+  Object.entries(MODE).forEach(([k, ids]) => ids.forEach(id => {
+    const cb = document.querySelector(`input[data-layer="${id === "h-T-casing" ? "h-T" : id}"]`);
+    vis(id, k === m && cb && cb.checked);
+  }));
+  try { localStorage.setItem("tw_mode", m); } catch (e) {}
+}
+document.querySelectorAll(".modes button").forEach(b => b.onclick = () => applyMode(b.dataset.mode));
+document.querySelectorAll("input[data-layer]").forEach(cb => cb.addEventListener("change", e => {
+  vis(e.target.dataset.layer, e.target.checked);
+  if (e.target.dataset.layer === "h-T") vis("h-T-casing", e.target.checked);
 }));
+map.on("load", () => { let m = "width"; try { m = localStorage.getItem("tw_mode") || "width"; } catch (e) {} applyMode(m); });
 document.getElementById("toggle").onclick = () => document.getElementById("panel").classList.toggle("hide");
 
 const SRC = { osm_width: "OSM width標籤", osm_lanes: "OSM lanes推估", name_suffix: "路名後綴（巷/弄/街）", class_default: "道路等級預設" };
 const HW = { residential:"residential 住宅道路", living_street:"living_street 生活街道", unclassified:"unclassified 一般道路", service:"service 服務道路", tertiary:"tertiary 三級道路", tertiary_link:"tertiary_link", secondary:"secondary 次要道路", secondary_link:"secondary_link", primary:"primary 主要道路", primary_link:"primary_link", pedestrian:"pedestrian 行人區", road:"road 未分類" };
-["ls-A","ls-B","ls-C"].forEach(id => {
+const SUBNL = { "國道": "Stroomweg（國道）", "快速公路": "Stroomweg（快速公路）", "省道": "Gebiedsontsluitingsweg（省道）", "縣道": "Gebiedsontsluitingsweg（縣道）", "鄉道": "Gebiedsontsluitingsweg（鄉道）", "市區主要幹道": "Gebiedsontsluitingsweg（市區主要幹道）", "市區次要幹道": "Gebiedsontsluitingsweg（市區次要幹道）" };
+const CLICKABLE = ["ls-A","ls-B","ls-C","h-A","h-D","h-T"];
+CLICKABLE.forEach(id => {
   map.on("mouseenter", id, () => map.getCanvas().style.cursor = "pointer");
   map.on("mouseleave", id, () => map.getCanvas().style.cursor = "");
 });
 map.on("click", e => {
-  const f = map.queryRenderedFeatures(e.point, { layers: ["ls-A","ls-B","ls-C"] })[0];
+  const f = map.queryRenderedFeatures(e.point, { layers: CLICKABLE })[0];
   if (!f) return;
   const p = f.properties;
+  if (f.sourceLayer === "hierarchy") {
+    new maplibregl.Popup({ closeButton: false, maxWidth: "300px" }).setLngLat(e.lngLat).setHTML(
+      `<b>${p.ref ? p.ref + "　" : ""}${p.name || "（未命名）"}</b><br>` +
+      `層級　<b>${p.ss === "T" ? "Through road 通過性道路" : "Distributor road 集散道路"}</b><br>` +
+      `類型　${SUBNL[p.sub] || p.sub}${p.link ? "（連絡道／匝道）" : ""}<br>OSM分類　${p.hw}` +
+      (p.lanes ? `<br>車道數　${p.lanes}` : "") + (p.ms ? `<br>速限　${p.ms}` : "") + `<br>路段長度　${p.len} m` +
+      `<br><a href="https://www.openstreetmap.org/way/${p.id}" target="_blank" style="color:#B8A98C">OSM way/${p.id}</a>`
+    ).addTo(map);
+    return;
+  }
   new maplibregl.Popup({ closeButton: false, maxWidth: "280px" }).setLngLat(e.lngLat).setHTML(
     `<b>${p.name || "（未命名道路）"}</b><br>估算路寬　<b>${p.w} m</b>　（${SRC[p.src] || p.src}）<br>` +
     `OSM分類　${HW[p.hw] || p.hw}<br>路段長度　${p.len} m` +
@@ -155,6 +233,20 @@ fetch("summary.json").then(r => r.json()).then(s => {
     `<div><b>${(100*tot/s.total_km).toFixed(0)}%</b>佔全部路網長度</div>` +
     `<div><b>${s.osm_width_tag_coverage_pct}%</b>路段有OSM width標籤</div>` +
     `<div><b>${s.osm_lanes_tag_coverage_pct}%</b>路段有lanes標籤</div>`;
+}).catch(() => {});
+
+fetch("hierarchy_stats.json").then(r => r.json()).then(h => {
+  const f = v => v.toLocaleString("zh-TW", { maximumFractionDigits: 0 });
+  document.getElementById("nT").textContent = f(h.T.km) + " km";
+  document.getElementById("nD").textContent = f(h.D.km) + " km";
+  document.getElementById("nAcc").textContent = f(h.A.km) + " km";
+  const tot = h.T.km + h.D.km + h.A.km;
+  document.getElementById("subD").textContent = Object.entries(h.D.by_sub).map(([k, v]) => `${k} ${f(v)}`).join("・") + " km";
+  document.getElementById("statsSS").innerHTML =
+    `<div><b>${(100*h.T.km/tot).toFixed(1)}%</b>Through 佔路網長度</div>` +
+    `<div><b>${(100*h.D.km/tot).toFixed(0)}%</b>Distributor 佔路網長度</div>` +
+    `<div><b>${(100*h.A.km/tot).toFixed(0)}%</b>Access 佔路網長度</div>` +
+    `<div><b>${f(tot)}</b>公里 全路網</div>`;
 }).catch(() => {});
 
 fetch("county_stats.json").then(r => r.json()).then(st => {

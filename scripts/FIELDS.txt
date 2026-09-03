@@ -1,7 +1,7 @@
 Taiwanwonnerf：全台生活街道指認資料集（OSM 版）
 資料來源：OpenStreetMap contributors（ODbL 1.0），Geofabrik taiwan 擷取檔，資料時間 2026-09-01
 座標系統：TWD97 / TM2 台灣（EPSG:3826）
-方法與程式：https://github.com/__GH_USER__/Taiwanwonnerf
+方法與程式：https://github.com/yunching0513/202609---Taiwanwonnerf
 
 欄位說明
   osm_id     OSM way ID（可於 https://www.openstreetmap.org/way/<id> 查看）
