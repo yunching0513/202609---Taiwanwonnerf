@@ -1,0 +1,31 @@
+Taiwanwonnerf：全台生活街道指認資料集（OSM 版）
+資料來源：OpenStreetMap contributors（ODbL 1.0），Geofabrik taiwan 擷取檔，資料時間 2026-09-01
+座標系統：TWD97 / TM2 台灣（EPSG:3826）
+方法與程式：https://github.com/__GH_USER__/Taiwanwonnerf
+
+欄位說明
+  osm_id     OSM way ID（可於 https://www.openstreetmap.org/way/<id> 查看）
+  highway    OSM 道路等級（residential / unclassified / service / tertiary / ...）
+  name       路名
+  width_est  估算路寬（公尺）
+  width_src  路寬估算依據：
+               osm_width      OSM width 標籤（實測值，最可信）
+               osm_lanes      OSM lanes 標籤推估：lanes × 3.5 + 2.0
+               name_suffix    台灣路名慣例：弄 4m、巷 6m、街 10m、路 12m
+               class_default  依 OSM 道路等級的預設值（service alley 4m、service 5m、
+                              living_street 6m、residential 8m、unclassified 10m、tertiary 15m、
+                              secondary 20m、primary 30m）
+  w_osm      OSM 原始 width 標籤值（若有）
+  lanes_osm  OSM 原始 lanes 標籤值（若有）
+  oneway     單行道標籤
+  cls        生活街道分級：A ≤8m（巷弄型）、B 8–12m（社區街道）、C 12–15m（邊界案例）、X >15m
+  service    service 子類型（alley 等）
+  surface    鋪面
+  maxspeed   速限標籤
+  length_m   路段長度（公尺，於 EPSG:3826 計算）
+
+注意
+  已排除 motorway / trunk 及其連絡道、footway / path / cycleway / steps、
+  以及 service=parking_aisle / driveway / drive-through / emergency_access。
+  width_src 非 osm_width 者皆為推估值，用於初步指認；正式分析建議以
+  內政部國土測繪中心「臺灣通用電子地圖」ROAD 圖層之 WIDTH 欄位或都市計畫道路寬度校正。

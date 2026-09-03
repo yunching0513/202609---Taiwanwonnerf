@@ -1,0 +1,4 @@
+data/*.pbf
+data/*.geojsonl
+data/roads_all.parquet
+*.log

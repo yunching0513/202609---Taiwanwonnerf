@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taiwanwonnerf：全台生活街道指認地圖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;1,300&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="vendor/maplibre-gl.css" rel="stylesheet">
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/pmtiles.js"></script>
+<style>
+  :root{
+    --ground:#F2F2F2; --ink:#333333; --strong:#000000; --gold:#B8A98C;
+    --shu:#A6392C; --tokiwa:#2E6B4E; --bluegrey:#D6DCE0;
+    --cA:#A6392C; --cB:#2E6B4E; --cC:#B8A98C;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--ground);color:var(--ink);
+    font-family:'Noto Sans TC','Yu Gothic','Hiragino Sans',sans-serif;font-weight:300;
+    letter-spacing:.06em;line-height:1.9}
+  #map{position:absolute;inset:0}
+  .panel{position:absolute;top:24px;left:24px;width:392px;max-height:calc(100% - 48px);
+    overflow:auto;background:rgba(242,242,242,.94);backdrop-filter:blur(8px);
+    padding:32px 32px 24px;box-shadow:0 1px 0 rgba(0,0,0,.04);
+    transition:opacity .8s ease}
+  .panel h1{font-family:'Cormorant','Noto Sans TC',serif;font-weight:300;font-size:13px;
+    letter-spacing:.32em;color:var(--gold);margin:0 0 8px;text-transform:uppercase}
+  .panel h2{font-weight:400;font-size:22px;letter-spacing:.14em;color:var(--strong);margin:0 0 16px;line-height:1.5}
+  .panel p{font-size:13px;margin:0 0 16px}
+  .legend{margin:24px 0 16px;padding-top:16px;border-top:1px solid var(--bluegrey)}
+  .row{display:flex;align-items:center;gap:12px;font-size:12.5px;padding:6px 0;cursor:pointer;user-select:none;white-space:nowrap}
+  .row input{accent-color:var(--tokiwa);margin:0}
+  .sw{width:22px;height:0;border-top:3px solid;flex:none}
+  .row .n{color:var(--gold);margin-left:auto;font-family:'Cormorant',serif;font-size:14px;letter-spacing:.04em}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:16px 0 0;font-size:11.5px;line-height:1.6}
+  .stats b{display:block;font-family:'Cormorant',serif;font-weight:400;font-size:24px;color:var(--strong);letter-spacing:.02em;line-height:1.2}
+  .cty{margin-top:20px;border-top:1px solid var(--bluegrey);padding-top:12px;font-size:12px}
+  .cty summary{cursor:pointer;letter-spacing:.12em;color:var(--ink);list-style:none;display:flex;justify-content:space-between}
+  .cty summary::after{content:"＋";color:var(--gold)} .cty[open] summary::after{content:"－"}
+  .cty table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px}
+  .cty td{padding:3px 0;border-bottom:1px solid rgba(214,220,224,.6);cursor:pointer}
+  .cty td:nth-child(2),.cty td:nth-child(3){text-align:right;font-family:'Cormorant',serif;font-size:13px;color:var(--gold)}
+  .cty tr:hover td{color:var(--shu)}
+  .bar{height:2px;background:var(--bluegrey);position:relative;margin-top:2px}
+  .bar i{position:absolute;left:0;top:0;height:100%;background:var(--tokiwa)}
+  .src{font-size:11px;color:var(--gold);letter-spacing:.1em;margin-top:24px}
+  .src a{color:inherit;text-decoration:none;border-bottom:1px solid var(--bluegrey)}
+  .mark{position:absolute;right:24px;bottom:24px;font-family:'Cormorant',serif;font-size:11px;
+    letter-spacing:.3em;color:var(--gold);writing-mode:vertical-rl;text-transform:uppercase}
+  .maplibregl-popup-content{background:var(--ground);color:var(--ink);font-family:inherit;
+    font-size:12px;font-weight:300;letter-spacing:.06em;line-height:1.8;padding:16px 20px;border-radius:2px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  .maplibregl-popup-content b{font-weight:500;color:var(--strong)}
+  .maplibregl-popup-tip{border-top-color:var(--ground)}
+  .maplibregl-ctrl-group{border-radius:2px;box-shadow:none;background:var(--ground)}
+  .search{width:100%;border:0;border-bottom:1px solid var(--bluegrey);background:transparent;
+    padding:8px 0;font:inherit;font-size:13px;letter-spacing:.1em;color:var(--ink);outline:none}
+  .toggle{position:absolute;top:24px;left:24px;display:none;background:var(--ground);border:0;
+    padding:10px 14px;font:inherit;font-size:12px;letter-spacing:.2em;cursor:pointer}
+  @media (max-width:640px){.panel{width:calc(100% - 48px);max-height:50%}.toggle{display:block}.panel.hide{display:none}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<button class="toggle" id="toggle">圖例</button>
+<aside class="panel" id="panel">
+  <h1>Taiwanwonnerf · Living Streets</h1>
+  <h2>全台生活街道<br>指認地圖</h2>
+  <p>以OpenStreetMap路網為底，估算每一路段之路寬，指認15公尺以下、可能成為生活街道（living street／しなやかな道）的道路。放大到街廓層級可點選任一路段查看估算依據。</p>
+  <input class="search" id="q" placeholder="搜尋地點（例：臺南市中西區）" />
+  <div class="legend">
+    <label class="row"><input type="checkbox" data-cls="A" checked><span class="sw" style="border-color:var(--cA)"></span>≤8公尺 巷弄型生活街道<span class="n" id="nA">–</span></label>
+    <label class="row"><input type="checkbox" data-cls="B" checked><span class="sw" style="border-color:var(--cB)"></span>8–12公尺 社區街道<span class="n" id="nB">–</span></label>
+    <label class="row"><input type="checkbox" data-cls="C"><span class="sw" style="border-color:var(--cC)"></span>12–15公尺 邊界案例<span class="n" id="nC">–</span></label>
+  </div>
+  <div class="stats" id="stats"></div>
+  <details class="cty"><summary>各縣市 ≤12公尺道路比例</summary><table id="ctyTable"></table></details>
+  <div class="src">資料：© OpenStreetMap contributors（ODbL）· 底圖：內政部國土測繪中心 臺灣通用電子地圖<br>
+    方法與程式：<a href="https://github.com/Taiwanwonnerf" target="_blank">GitHub / Taiwanwonnerf</a></div>
+</aside>
+<div class="mark">Shinayaka · 韌</div>
+
+<script>
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+const TILES = "pmtiles://" + location.href.replace(/[^/]*$/, "") + "tiles/living_streets.pmtiles";
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: {
+    version: 8,
+    sources: {
+      emap: {   // 國土測繪中心 通用版電子地圖（灰階）
+        type: "raster", tileSize: 256, maxzoom: 19,
+        tiles: ["https://wmts.nlsc.gov.tw/wmts/EMAP5/default/GoogleMapsCompatible/{z}/{y}/{x}"],
+        attribution: "底圖 © 內政部國土測繪中心"
+      },
+      roads: { type: "vector", url: TILES, attribution: "© OpenStreetMap contributors" }
+    },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": "#F2F2F2" } },
+      { id: "emap", type: "raster", source: "emap",
+        paint: { "raster-opacity": 0.55, "raster-saturation": -1, "raster-contrast": -0.2 } },
+      { id: "ls-C", type: "line", source: "roads", "source-layer": "living_streets",
+        filter: ["==", ["get", "cls"], "C"], layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#B8A98C", "line-opacity": 0.75,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 12, 1.2, 16, 4] } },
+      { id: "ls-B", type: "line", source: "roads", "source-layer": "living_streets",
+        filter: ["==", ["get", "cls"], "B"], layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#2E6B4E", "line-opacity": 0.8,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 12, 1.2, 16, 4] } },
+      { id: "ls-A", type: "line", source: "roads", "source-layer": "living_streets",
+        filter: ["==", ["get", "cls"], "A"], layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#A6392C", "line-opacity": 0.8,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.3, 12, 1, 16, 3.5] } },
+    ]
+  },
+  center: [120.98, 23.7], zoom: 7.4, minZoom: 6, maxZoom: 18, attributionControl: { compact: true }
+});
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+
+document.querySelectorAll("input[data-cls]").forEach(cb => cb.addEventListener("change", e => {
+  map.setLayoutProperty("ls-" + e.target.dataset.cls, "visibility", e.target.checked ? "visible" : "none");
+}));
+document.getElementById("toggle").onclick = () => document.getElementById("panel").classList.toggle("hide");
+
+const SRC = { osm_width: "OSM width標籤", osm_lanes: "OSM lanes推估", name_suffix: "路名後綴（巷/弄/街）", class_default: "道路等級預設" };
+const HW = { residential:"residential 住宅道路", living_street:"living_street 生活街道", unclassified:"unclassified 一般道路", service:"service 服務道路", tertiary:"tertiary 三級道路", tertiary_link:"tertiary_link", secondary:"secondary 次要道路", secondary_link:"secondary_link", primary:"primary 主要道路", primary_link:"primary_link", pedestrian:"pedestrian 行人區", road:"road 未分類" };
+["ls-A","ls-B","ls-C"].forEach(id => {
+  map.on("mouseenter", id, () => map.getCanvas().style.cursor = "pointer");
+  map.on("mouseleave", id, () => map.getCanvas().style.cursor = "");
+});
+map.on("click", e => {
+  const f = map.queryRenderedFeatures(e.point, { layers: ["ls-A","ls-B","ls-C"] })[0];
+  if (!f) return;
+  const p = f.properties;
+  new maplibregl.Popup({ closeButton: false, maxWidth: "280px" }).setLngLat(e.lngLat).setHTML(
+    `<b>${p.name || "（未命名道路）"}</b><br>估算路寬　<b>${p.w} m</b>　（${SRC[p.src] || p.src}）<br>` +
+    `OSM分類　${HW[p.hw] || p.hw}<br>路段長度　${p.len} m` +
+    (p.ow ? `<br>單行道　${p.ow}` : "") +
+    `<br><a href="https://www.openstreetmap.org/way/${p.id}" target="_blank" style="color:#B8A98C">OSM way/${p.id}</a>`
+  ).addTo(map);
+});
+
+fetch("summary.json").then(r => r.json()).then(s => {
+  const km = c => (s.by_class[c].km).toLocaleString("zh-TW", { maximumFractionDigits: 0 });
+  document.getElementById("nA").textContent = km("A") + " km";
+  document.getElementById("nB").textContent = km("B") + " km";
+  document.getElementById("nC").textContent = km("C") + " km";
+  const tot = s.by_class.A.km + s.by_class.B.km;
+  document.getElementById("stats").innerHTML =
+    `<div><b>${tot.toLocaleString("zh-TW",{maximumFractionDigits:0})}</b>公里 ≤12m 道路</div>` +
+    `<div><b>${(100*tot/s.total_km).toFixed(0)}%</b>佔全部路網長度</div>` +
+    `<div><b>${s.osm_width_tag_coverage_pct}%</b>路段有OSM width標籤</div>` +
+    `<div><b>${s.osm_lanes_tag_coverage_pct}%</b>路段有lanes標籤</div>`;
+}).catch(() => {});
+
+fetch("county_stats.json").then(r => r.json()).then(st => {
+  const rows = Object.entries(st).filter(([k]) => k.match(/縣|市/)).sort((a, b) => b[1].pct_le12 - a[1].pct_le12);
+  const tb = document.getElementById("ctyTable");
+  tb.innerHTML = rows.map(([k, v]) =>
+    `<tr data-b="${v.bbox}"><td>${k}<div class="bar"><i style="width:${v.pct_le12}%"></i></div></td><td>${(v.A+v.B).toLocaleString("zh-TW",{maximumFractionDigits:0})} km</td><td>${v.pct_le12}%</td></tr>`).join("");
+  tb.querySelectorAll("tr").forEach(tr => tr.onclick = () => {
+    const b = tr.dataset.b.split(",").map(Number);
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 60, duration: 1600, essential: true });
+  });
+}).catch(() => {});
+
+// 簡易地名搜尋（Nominatim，限台灣）
+document.getElementById("q").addEventListener("keydown", async e => {
+  if (e.key !== "Enter" || !e.target.value.trim()) return;
+  const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&countrycodes=tw&limit=1&q=" + encodeURIComponent(e.target.value));
+  const j = await r.json();
+  if (j[0]) map.flyTo({ center: [+j[0].lon, +j[0].lat], zoom: 15, speed: 0.6, curve: 1.2 });
+});
+</script>
+</body>
+</html>
