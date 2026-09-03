@@ -1,4 +1,7 @@
 data/*.pbf
 data/*.geojsonl
 data/roads_all.parquet
+_to_delete/
+_parts/
 *.log
+.DS_Store
